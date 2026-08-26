@@ -61,7 +61,13 @@
     font-size:.78rem; font-weight:700; display:grid; place-items:center;
     font-variant-numeric:tabular-nums;
   }
+  .qbody{min-width:0}
   .qtext{margin:0; font-weight:600; font-size:1.02rem; line-height:1.45}
+  .mod{
+    display:inline-block; margin-bottom:7px; padding:2px 9px; border-radius:99px;
+    background:var(--accent-soft); color:var(--accent);
+    font-size:.72rem; font-weight:700; letter-spacing:.03em;
+  }
 
   .opts{display:flex; flex-direction:column; gap:8px}
   .opt{
@@ -105,6 +111,7 @@
   .score{font-size:2.6rem; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
   .score small{font-size:1.1rem; font-weight:500; color:var(--muted)}
   .msg{margin:6px 0 16px; color:var(--muted)}
+  .mods{margin:0 0 18px; font-size:.82rem; color:var(--muted)}
   .recap{display:flex; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:18px}
   .pip{
     width:30px; height:30px; border-radius:8px; font-size:.8rem; font-weight:700;
@@ -118,6 +125,13 @@
   }
   button.reset:hover{filter:brightness(1.08)}
   button.reset:focus-visible{outline:2px solid var(--accent); outline-offset:3px}
+  button.shuffle{
+    font:inherit; font-size:.8rem; font-weight:600; cursor:pointer;
+    color:var(--accent); background:transparent;
+    border:1px solid var(--line-strong); border-radius:8px; padding:3px 11px;
+  }
+  button.shuffle:hover{background:var(--accent-soft); border-color:var(--accent)}
+  button.shuffle:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
 </style>
 </head>
@@ -126,10 +140,11 @@
 <header>
   <div class="hd">
     <h1 id="title"></h1>
-    <p><span id="subtitle"></span> &middot; <a id="vlink" href="#" target="_blank" rel="noopener"></a></p>
+    <p><span id="subtitle"></span> &middot; <span id="bankinfo"></span></p>
     <div class="bar">
       <span class="stat">Answered <b id="answered">0</b>/<b id="total">0</b></span>
       <span class="stat">Score <b id="score">0</b>/<b id="scoreOf">0</b></span>
+      <button class="shuffle" id="shuffle" type="button">New set of questions</button>
     </div>
     <div class="track"><div class="fill" id="fill"></div></div>
   </div>
@@ -144,7 +159,8 @@
     <div class="score"><span id="fScore">0</span><small> / <span id="fTotal">0</span></small></div>
     <p class="msg" id="fMsg"></p>
     <div class="recap" id="recap"></div>
-    <button class="reset" id="reset" type="button">Start over</button>
+    <p class="mods" id="fMods"></p>
+    <button class="reset" id="reset" type="button">Try a new set</button>
   </section>
 </div>
 
@@ -164,20 +180,47 @@
     return;
   }
 
-  var qs = Q.questions;
-  var N = qs.length;
-  var picked = qs.map(function () { return null; });   // null = unanswered
+  var BANK = Q.questions;
+  var MODULES = Q.modules || {};
   var LETTERS = ["A", "B", "C", "D", "E", "F"];
+
+  // Draw size: what's configured, but never more than the bank holds.
+  var DRAW = Math.min(Q.perAttempt || BANK.length, BANK.length);
+
+  var qs;         // the questions in the current attempt
+  var N;          // qs.length
+  var picked;     // one entry per question in qs; null = unanswered
+
+  // Fisher-Yates: unbiased shuffle of a copy.
+  function shuffled(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function moduleOf(q) {
+    return MODULES[q.module] || {};
+  }
+
+  function moduleLabel(q) {
+    var m = moduleOf(q);
+    if (q.module == null) return m.title || "";
+    return "Module " + q.module + (m.title ? " · " + m.title : "");
+  }
 
   // ---- header chrome ----
   document.getElementById("title").textContent = Q.title || "Quiz";
   document.getElementById("subtitle").textContent = Q.subtitle || "";
-  var vlink = document.getElementById("vlink");
-  vlink.textContent = Q.videoLabel || "Watch the video";
-  vlink.href = Q.video || "#";
-  document.getElementById("total").textContent = N;
-  document.getElementById("scoreOf").textContent = N;
-  document.getElementById("fTotal").textContent = N;
+
+  function bankInfo() {
+    var mods = Object.keys(MODULES).length;
+    return DRAW + " of " + BANK.length + " questions" +
+           (mods ? " · " + mods + " module" + (mods === 1 ? "" : "s") : "");
+  }
+  document.getElementById("bankinfo").textContent = bankInfo();
 
   // ---- build one card ----
   function card(q, i) {
@@ -190,11 +233,23 @@
     var num = document.createElement("span");
     num.className = "num";
     num.textContent = i + 1;
+
+    var body = document.createElement("div");
+    body.className = "qbody";
+    var label = moduleLabel(q);
+    if (label) {
+      var badge = document.createElement("span");
+      badge.className = "mod";
+      badge.textContent = label;
+      body.appendChild(badge);
+    }
     var txt = document.createElement("h3");
     txt.className = "qtext";
     txt.textContent = q.question;
+    body.appendChild(txt);
+
     head.appendChild(num);
-    head.appendChild(txt);
+    head.appendChild(body);
     el.appendChild(head);
 
     var opts = document.createElement("div");
@@ -223,7 +278,23 @@
     return el;
   }
 
-  qs.forEach(function (q, i) { list.appendChild(card(q, i)); });
+  // ---- start a fresh attempt: draw DRAW questions at random and render them ----
+  function newAttempt() {
+    qs = shuffled(BANK).slice(0, DRAW);
+    N = qs.length;
+    picked = qs.map(function () { return null; });
+
+    document.getElementById("total").textContent = N;
+    document.getElementById("scoreOf").textContent = N;
+    document.getElementById("fTotal").textContent = N;
+
+    list.innerHTML = "";
+    qs.forEach(function (q, i) { list.appendChild(card(q, i)); });
+
+    update();
+    document.getElementById("live").textContent =
+      "New set of " + N + " questions drawn.";
+  }
 
   // ---- answering ----
   function choose(i, j) {
@@ -280,14 +351,21 @@
     exp.appendChild(h);
     exp.appendChild(p);
 
-    if (Q.video && typeof q.time === "number") {
+    var video = moduleOf(q).video;
+    if (video) {
       var a = document.createElement("a");
       a.className = "jump";
       a.target = "_blank";
       a.rel = "noopener";
-      a.href = Q.video + (Q.video.indexOf("?") > -1 ? "&" : "?") + "t=" + q.time + "s";
-      var m = Math.floor(q.time / 60), s = q.time % 60;
-      a.textContent = "▶ Hear this at " + m + ":" + (s < 10 ? "0" : "") + s;
+      if (typeof q.time === "number") {
+        a.href = video + (video.indexOf("?") > -1 ? "&" : "?") + "t=" + q.time + "s";
+        var m = Math.floor(q.time / 60), s = q.time % 60;
+        a.textContent = "▶ Hear this at " + m + ":" + (s < 10 ? "0" : "") + s +
+                        " in module " + q.module;
+      } else {
+        a.href = video;
+        a.textContent = "▶ Watch module " + q.module;
+      }
       exp.appendChild(a);
     }
   }
@@ -324,21 +402,39 @@
       pip.className = "pip " + (right ? "y" : "n");
       pip.href = "#q" + i;
       pip.textContent = i + 1;
-      pip.title = "Question " + (i + 1) + (right ? " — correct" : " — incorrect");
+      pip.title = "Question " + (i + 1) + " — " + moduleLabel(qs[i]) +
+                  (right ? " — correct" : " — incorrect");
       recap.appendChild(pip);
     });
+
+    // Which modules did this attempt draw from, and how did each go?
+    var byMod = {};
+    picked.forEach(function (p, i) {
+      var k = qs[i].module;
+      if (!byMod[k]) byMod[k] = { right: 0, total: 0 };
+      byMod[k].total++;
+      if (p === qs[i].answer) byMod[k].right++;
+    });
+    document.getElementById("fMods").textContent =
+      "This set: " + Object.keys(byMod).sort(function (a, b) { return a - b; })
+        .map(function (k) {
+          return "Module " + k + " " + byMod[k].right + "/" + byMod[k].total;
+        }).join(" · ");
+
     sum.hidden = false;
   }
 
+  // Both "start over" controls draw a fresh random set from the bank.
   document.getElementById("reset").addEventListener("click", function () {
-    picked = qs.map(function () { return null; });
-    qs.forEach(function (_, i) { paint(i); });
-    update();
+    newAttempt();
     window.scrollTo({ top: 0, behavior: "smooth" });
-    document.getElementById("live").textContent = "Quiz reset.";
+  });
+  document.getElementById("shuffle").addEventListener("click", function () {
+    newAttempt();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
-  update();
+  newAttempt();
 })();
 </script>
 </body>
