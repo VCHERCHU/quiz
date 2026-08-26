@@ -201,6 +201,18 @@
     return a;
   }
 
+  // Option order is shuffled per attempt too, so the correct answer can't be
+  // guessed from where it sits in the bank. Returns a copy with `options`
+  // permuted and `answer` remapped to match.
+  function withShuffledOptions(q) {
+    var order = shuffled(q.options.map(function (_, j) { return j; }));
+    var c = {}, k;
+    for (k in q) { if (Object.prototype.hasOwnProperty.call(q, k)) c[k] = q[k]; }
+    c.options = order.map(function (j) { return q.options[j]; });
+    c.answer = order.indexOf(q.answer);
+    return c;
+  }
+
   function moduleOf(q) {
     return MODULES[q.module] || {};
   }
@@ -280,7 +292,7 @@
 
   // ---- start a fresh attempt: draw DRAW questions at random and render them ----
   function newAttempt() {
-    qs = shuffled(BANK).slice(0, DRAW);
+    qs = shuffled(BANK).slice(0, DRAW).map(withShuffledOptions);
     N = qs.length;
     picked = qs.map(function () { return null; });
 
