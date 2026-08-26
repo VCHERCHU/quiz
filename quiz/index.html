@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product Thinking — Quiz</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --ink:#12151a; --muted:#5c6672;
+    --line:#e2e5ea; --line-strong:#cfd4dc;
+    --accent:#3b5bdb; --accent-soft:#e8ecfd;
+    --ok:#1a7f47; --ok-bg:#e7f5ec; --ok-line:#8bc9a5;
+    --no:#c0392b; --no-bg:#fdeceb; --no-line:#eda9a2;
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12151a; --card:#1a1f27; --ink:#eef1f5; --muted:#98a2b0;
+      --line:#2a313b; --line-strong:#3a424e;
+      --accent:#8ea4ff; --accent-soft:#232b45;
+      --ok:#5cc98a; --ok-bg:#16281f; --ok-line:#2f6c4a;
+      --no:#f08a80; --no-bg:#2b1a19; --no-line:#7a3b34;
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:0 20px 80px}
+
+  /* ---------- sticky header ---------- */
+  header{
+    position:sticky; top:0; z-index:10;
+    background:var(--bg);
+    border-bottom:1px solid var(--line);
+  }
+  .hd{max-width:760px; margin:0 auto; padding:14px 20px 0}
+  .hd h1{margin:0; font-size:1.15rem; letter-spacing:-.01em}
+  .hd p{margin:2px 0 0; font-size:.82rem; color:var(--muted)}
+  .hd a{color:var(--accent)}
+  .bar{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin:10px 0 8px}
+  .stat{font-size:.85rem; color:var(--muted)}
+  .stat b{color:var(--ink); font-variant-numeric:tabular-nums}
+  .track{height:4px; background:var(--line); border-radius:99px; overflow:hidden}
+  .fill{height:100%; width:0; background:var(--accent); border-radius:99px; transition:width .3s ease}
+
+  /* ---------- question cards ---------- */
+  .intro{margin:26px 0 20px; color:var(--muted); font-size:.92rem}
+  .q{
+    background:var(--card); border:1px solid var(--line);
+    border-radius:var(--radius); padding:20px; margin:0 0 16px;
+  }
+  .q.done{border-color:var(--line-strong)}
+  .qhead{display:flex; gap:12px; align-items:flex-start; margin-bottom:14px}
+  .num{
+    flex:0 0 auto; width:26px; height:26px; border-radius:8px;
+    background:var(--accent-soft); color:var(--accent);
+    font-size:.78rem; font-weight:700; display:grid; place-items:center;
+    font-variant-numeric:tabular-nums;
+  }
+  .qtext{margin:0; font-weight:600; font-size:1.02rem; line-height:1.45}
+
+  .opts{display:flex; flex-direction:column; gap:8px}
+  .opt{
+    display:flex; gap:11px; align-items:flex-start; width:100%; text-align:left;
+    font:inherit; color:inherit; cursor:pointer;
+    background:transparent; border:1px solid var(--line); border-radius:10px;
+    padding:11px 13px; transition:background .14s, border-color .14s;
+  }
+  .opt:hover:not(:disabled){background:var(--accent-soft); border-color:var(--accent)}
+  .opt:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .opt:disabled{cursor:default}
+  .key{
+    flex:0 0 auto; width:21px; height:21px; margin-top:1px; border-radius:6px;
+    border:1px solid var(--line-strong); font-size:.72rem; font-weight:700;
+    display:grid; place-items:center; color:var(--muted);
+  }
+  .opt.correct{background:var(--ok-bg); border-color:var(--ok-line)}
+  .opt.correct .key{background:var(--ok); border-color:var(--ok); color:#fff}
+  .opt.wrong{background:var(--no-bg); border-color:var(--no-line)}
+  .opt.wrong .key{background:var(--no); border-color:var(--no); color:#fff}
+  .opt.muted{opacity:.5}
+
+  .exp{
+    margin-top:14px; border-left:3px solid var(--line-strong);
+    padding:2px 0 2px 14px; font-size:.93rem; color:var(--muted);
+  }
+  .exp.right{border-left-color:var(--ok)}
+  .exp.wrongx{border-left-color:var(--no)}
+  .exp h4{margin:0 0 5px; font-size:.82rem; letter-spacing:.04em; text-transform:uppercase}
+  .exp.right h4{color:var(--ok)}
+  .exp.wrongx h4{color:var(--no)}
+  .exp p{margin:0; color:var(--ink)}
+  .exp .jump{display:inline-block; margin-top:9px; font-size:.82rem; color:var(--accent)}
+
+  /* ---------- summary ---------- */
+  .sum{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:24px; margin-top:26px; text-align:center;
+  }
+  .sum[hidden]{display:none}
+  .score{font-size:2.6rem; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+  .score small{font-size:1.1rem; font-weight:500; color:var(--muted)}
+  .msg{margin:6px 0 16px; color:var(--muted)}
+  .recap{display:flex; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:18px}
+  .pip{
+    width:30px; height:30px; border-radius:8px; font-size:.8rem; font-weight:700;
+    display:grid; place-items:center; border:1px solid transparent; text-decoration:none;
+  }
+  .pip.y{background:var(--ok-bg); color:var(--ok); border-color:var(--ok-line)}
+  .pip.n{background:var(--no-bg); color:var(--no); border-color:var(--no-line)}
+  button.reset{
+    font:inherit; font-weight:600; cursor:pointer; color:#fff; background:var(--accent);
+    border:0; border-radius:10px; padding:10px 22px;
+  }
+  button.reset:hover{filter:brightness(1.08)}
+  button.reset:focus-visible{outline:2px solid var(--accent); outline-offset:3px}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd">
+    <h1 id="title"></h1>
+    <p><span id="subtitle"></span> &middot; <a id="vlink" href="#" target="_blank" rel="noopener"></a></p>
+    <div class="bar">
+      <span class="stat">Answered <b id="answered">0</b>/<b id="total">0</b></span>
+      <span class="stat">Score <b id="score">0</b>/<b id="scoreOf">0</b></span>
+    </div>
+    <div class="track"><div class="fill" id="fill"></div></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="intro">Pick an answer for each question. The explanation appears straight away &mdash; and your answer locks in, so choose deliberately.</p>
+
+  <main id="list"></main>
+
+  <section class="sum" id="sum" hidden aria-live="polite">
+    <div class="score"><span id="fScore">0</span><small> / <span id="fTotal">0</span></small></div>
+    <p class="msg" id="fMsg"></p>
+    <div class="recap" id="recap"></div>
+    <button class="reset" id="reset" type="button">Start over</button>
+  </section>
+</div>
+
+<p class="sr" id="live" role="status" aria-live="polite"></p>
+
+<script src="questions.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var Q = (typeof QUIZ_DATA !== "undefined") ? QUIZ_DATA : null;
+  var list = document.getElementById("list");
+
+  if (!Q || !Q.questions || !Q.questions.length) {
+    list.innerHTML = '<div class="q"><p class="qtext">Could not load questions.js</p>' +
+      '<p class="exp">Make sure questions.js sits in the same folder as this file.</p></div>';
+    return;
+  }
+
+  var qs = Q.questions;
+  var N = qs.length;
+  var picked = qs.map(function () { return null; });   // null = unanswered
+  var LETTERS = ["A", "B", "C", "D", "E", "F"];
+
+  // ---- header chrome ----
+  document.getElementById("title").textContent = Q.title || "Quiz";
+  document.getElementById("subtitle").textContent = Q.subtitle || "";
+  var vlink = document.getElementById("vlink");
+  vlink.textContent = Q.videoLabel || "Watch the video";
+  vlink.href = Q.video || "#";
+  document.getElementById("total").textContent = N;
+  document.getElementById("scoreOf").textContent = N;
+  document.getElementById("fTotal").textContent = N;
+
+  // ---- build one card ----
+  function card(q, i) {
+    var el = document.createElement("section");
+    el.className = "q";
+    el.id = "q" + i;
+
+    var head = document.createElement("div");
+    head.className = "qhead";
+    var num = document.createElement("span");
+    num.className = "num";
+    num.textContent = i + 1;
+    var txt = document.createElement("h3");
+    txt.className = "qtext";
+    txt.textContent = q.question;
+    head.appendChild(num);
+    head.appendChild(txt);
+    el.appendChild(head);
+
+    var opts = document.createElement("div");
+    opts.className = "opts";
+    q.options.forEach(function (text, j) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      var k = document.createElement("span");
+      k.className = "key";
+      k.textContent = LETTERS[j];
+      var s = document.createElement("span");
+      s.textContent = text;
+      b.appendChild(k);
+      b.appendChild(s);
+      b.addEventListener("click", function () { choose(i, j); });
+      opts.appendChild(b);
+    });
+    el.appendChild(opts);
+
+    var exp = document.createElement("div");
+    exp.className = "exp";
+    exp.hidden = true;
+    el.appendChild(exp);
+
+    return el;
+  }
+
+  qs.forEach(function (q, i) { list.appendChild(card(q, i)); });
+
+  // ---- answering ----
+  function choose(i, j) {
+    if (picked[i] !== null) return;      // locked
+    picked[i] = j;
+    paint(i);
+    update();
+    var right = j === qs[i].answer;
+    document.getElementById("live").textContent =
+      "Question " + (i + 1) + ": " + (right ? "correct." : "incorrect.");
+  }
+
+  function paint(i) {
+    var q = qs[i];
+    var chosen = picked[i];
+    var el = document.getElementById("q" + i);
+    var buttons = el.querySelectorAll(".opt");
+    var exp = el.querySelector(".exp");
+
+    el.classList.toggle("done", chosen !== null);
+
+    Array.prototype.forEach.call(buttons, function (b, j) {
+      b.className = "opt";
+      b.disabled = chosen !== null;
+      var key = b.querySelector(".key");
+      if (chosen === null) { key.textContent = LETTERS[j]; return; }
+      if (j === q.answer) {
+        b.classList.add("correct");
+        key.textContent = "✓";
+      } else if (j === chosen) {
+        b.classList.add("wrong");
+        key.textContent = "✗";
+      } else {
+        b.classList.add("muted");
+        key.textContent = LETTERS[j];
+      }
+    });
+
+    if (chosen === null) {
+      exp.hidden = true;
+      exp.innerHTML = "";
+      return;
+    }
+
+    var right = chosen === q.answer;
+    exp.hidden = false;
+    exp.className = "exp " + (right ? "right" : "wrongx");
+    exp.innerHTML = "";
+
+    var h = document.createElement("h4");
+    h.textContent = right ? "✓ Correct" : "✗ Not quite — the answer is " + LETTERS[q.answer];
+    var p = document.createElement("p");
+    p.textContent = q.explanation;
+    exp.appendChild(h);
+    exp.appendChild(p);
+
+    if (Q.video && typeof q.time === "number") {
+      var a = document.createElement("a");
+      a.className = "jump";
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.href = Q.video + (Q.video.indexOf("?") > -1 ? "&" : "?") + "t=" + q.time + "s";
+      var m = Math.floor(q.time / 60), s = q.time % 60;
+      a.textContent = "▶ Hear this at " + m + ":" + (s < 10 ? "0" : "") + s;
+      exp.appendChild(a);
+    }
+  }
+
+  // ---- header + summary, derived from `picked` only ----
+  function update() {
+    var answered = 0, score = 0;
+    picked.forEach(function (p, i) {
+      if (p === null) return;
+      answered++;
+      if (p === qs[i].answer) score++;
+    });
+
+    document.getElementById("answered").textContent = answered;
+    document.getElementById("score").textContent = score;
+    document.getElementById("fill").style.width = (answered / N * 100) + "%";
+
+    var sum = document.getElementById("sum");
+    if (answered < N) { sum.hidden = true; return; }
+
+    document.getElementById("fScore").textContent = score;
+    var pct = score / N;
+    document.getElementById("fMsg").textContent =
+      pct === 1   ? "Full marks — you were listening." :
+      pct >= 0.75 ? "Strong. The core ideas landed." :
+      pct >= 0.5  ? "A decent start — worth a rewatch of the parts you missed." :
+                    "Give the video another look; the jump links above go straight to each point.";
+
+    var recap = document.getElementById("recap");
+    recap.innerHTML = "";
+    picked.forEach(function (p, i) {
+      var right = p === qs[i].answer;
+      var pip = document.createElement("a");
+      pip.className = "pip " + (right ? "y" : "n");
+      pip.href = "#q" + i;
+      pip.textContent = i + 1;
+      pip.title = "Question " + (i + 1) + (right ? " — correct" : " — incorrect");
+      recap.appendChild(pip);
+    });
+    sum.hidden = false;
+  }
+
+  document.getElementById("reset").addEventListener("click", function () {
+    picked = qs.map(function () { return null; });
+    qs.forEach(function (_, i) { paint(i); });
+    update();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.getElementById("live").textContent = "Quiz reset.";
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
